@@ -158,7 +158,12 @@ class TeraProtocol {
 					}
 
 					default: {
-						// TODO warn/throw?
+						if (Array.isArray(val)) {
+							for (const elem of val) {
+								// here + next offsets + recurisve length
+								length += 4 + SIZES[type.type]
+							}
+						}
 						break
 					}
 				}
@@ -303,7 +308,7 @@ class TeraProtocol {
 
 			if (Array.isArray(type)) {
 				if (type.type === 'object') {
-					data[key] = {}
+					if(!data[key]) data[key] = {}
 					for (const f of type) {
 						parseField(f, data[key], keyPath)
 					}
@@ -330,7 +335,7 @@ class TeraProtocol {
 					}
 
 					next = reader.uint16()
-					array[index++] = this.parse(null, type, null, reader, `${displayName}.${keyPath}`)
+					array[index++] = type.type !== 'array' ? reader[type.type]() : this.parse(null, type, null, reader, `${displayName}.${keyPath}`)
 
 					if (next && index === length) {
 						throw new Error(`${displayName}.${keyPath}: found out of bounds element ${index} (expected length ${length})`)
@@ -468,7 +473,9 @@ class TeraProtocol {
 						writer.uint16(0)
 
 						// recurse
-						this.write(null, type, version, element, writer, `${displayName}.${keyPath}`)
+						if(type.type !== 'array')
+							writer[type.type](element)
+						else this.write(null, type, version, element, writer, `${displayName}.${keyPath}`)
 					}
 				}
 			// `type` is primitive
